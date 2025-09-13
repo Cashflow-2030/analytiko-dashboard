@@ -19,11 +19,11 @@ function App() {
     // Ventes Totales
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
-      .select('amount');
+      .select('amount, created_at');
     if (salesError) console.log('Erreur ventes', salesError);
-    setTotalSales(salesData?.reduce((sum, s) => sum + s.amount, 0) || 0);
+    setTotalSales(salesData?.reduce((sum, s) => sum + Number(s.amount), 0) || 0);
 
-    // Clients actifs
+    // Clients Actifs
     const { data: clientsData, error: clientsError } = await supabase
       .from('clients')
       .select('id');
@@ -33,33 +33,38 @@ function App() {
     // Produits
     const { data: productsData, error: productsError } = await supabase
       .from('products')
-      .select('id,name,price')
+      .select('id,title,handle,price,popularity')
+      .order('popularity', { ascending: false })
       .limit(5);
     if (productsError) console.log('Erreur produits', productsError);
     setTotalProducts(productsData?.length || 0);
     setTrendingProducts(productsData || []);
 
-    // Ventes mensuelles
-    const { data: monthlyData, error: monthlyError } = await supabase
-      .from('sales')
-      .select('month,amount'); // exemple simple
-    if (monthlyError) console.log('Erreur ventes mensuelles', monthlyError);
-    setMonthlySales(monthlyData || []);
+    // Ventes Mensuelles
+    // Exemple simple : regrouper par mois depuis la table sales
+    const monthlyMap = {};
+    salesData?.forEach(s => {
+      const month = new Date(s.created_at).toLocaleString('default', { month: 'long', year: 'numeric' });
+      monthlyMap[month] = (monthlyMap[month] || 0) + Number(s.amount);
+    });
+    const monthlyArray = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }));
+    setMonthlySales(monthlyArray);
 
     setLoading(false);
   }
 
   const exportCSV = () => {
     const csvContent = [
-      ['Produit', 'Montant'],
-      ...(monthlySales.map((s) => [s.month || '', s.amount || 0]) || []),
+      ['Produit', 'Prix', 'Popularité'],
+      ...(trendingProducts.map(p => [p.title, p.price, p.popularity]) || []),
     ]
-      .map((e) => e.join(','))
+      .map(e => e.join(','))
       .join('\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'ventes.csv';
+    link.download = 'produits.csv';
     link.click();
   };
 
@@ -90,9 +95,9 @@ function App() {
           <p>Aucun produit trouvé.</p>
         ) : (
           <ul>
-            {trendingProducts.map((p) => (
+            {trendingProducts.map(p => (
               <li key={p.id}>
-                {p.name} — ${p.price}
+                {p.title} — ${p.price} — Popularité: {p.popularity}
               </li>
             ))}
           </ul>
@@ -104,12 +109,18 @@ function App() {
         {monthlySales.length === 0 ? (
           <p>Aucune vente ce mois-ci.</p>
         ) : (
-          <pre>{JSON.stringify(monthlySales, null, 2)}</pre>
+          <ul>
+            {monthlySales.map((m, idx) => (
+              <li key={idx}>
+                {m.month} : ${m.amount.toLocaleString()}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
       <div>
-        <button onClick={exportCSV}>📤 Exporter les données</button>
+        <button onClick={exportCSV}>📤 Exporter les produits</button>
       </div>
     </div>
   );
