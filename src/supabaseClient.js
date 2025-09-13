@@ -8,5 +8,5 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: false }, // pour éviter les conflits RLS avec clés anonymes
+  auth: { persistSession: false },
 });
