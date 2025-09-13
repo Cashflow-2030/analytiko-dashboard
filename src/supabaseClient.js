@@ -7,4 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase URL et ANON KEY sont requis');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false }, // pour éviter les conflits RLS avec clés anonymes
+});
